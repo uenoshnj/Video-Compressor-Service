@@ -38,7 +38,7 @@ class TcpClient:
         print(data.decode())
 
 
-class Mp4FileClient:
+class VideoFileClient:
     def __init__(self):
         self.file_path: str = ''
         self.file_size: int
@@ -75,7 +75,7 @@ class Mp4FileClient:
 
 
 def main():
-    file = Mp4FileClient()
+    file = VideoFileClient()
     file.input_file_path()
 
     client = TcpClient()
