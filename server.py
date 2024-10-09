@@ -78,28 +78,23 @@ class ErrorHandle:
 
 
 class VideoProcessor:
-    def __init__(self, data: bytes, json_obj: dict):
-        self.TMP_FILE_PATH: str = './tmp/'
-        self.recv_data: bytes = data
+    def __init__(self, tmp_file: str, json_obj: dict):
+        self.tmp_file: str = tmp_file
         self.json_obj: dict = json_obj
         self.functions: dict[str, function] = {
-            'compress': self.compress,
-            'chenge_resolution': self.chenge_resolution,
-            'change_aspect_ratio': self.change_aspect_ratio,
-            'convert_to_audio': self.convert_to_audio,
-            'create_gif_webm': self.create_gif_webm
+            '1': self.compress,
+            '2': self.chenge_resolution,
+            '3': self.change_aspect_ratio,
+            '4': self.convert_to_audio,
+            '5': self.create_gif_webm
         }   
-    
-    # 一時領域に保存
-    def save_tmp(self):
-        with open(self.TMP_FILE_PATH, 'wb') as f:
-            f.write(self.recv_data)
 
+    
 
     # 動画圧縮
     def compress(self):
         
-        pass
+
 
     # 解像度の変更
     def chenge_resolution(self):
