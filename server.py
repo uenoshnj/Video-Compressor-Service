@@ -1,6 +1,8 @@
 import json
 import socket
 
+import ffmpeg
+
 import mmp
 
 class TcpServer:
@@ -11,6 +13,8 @@ class TcpServer:
         
         self.json_obj: dict = {}
         self.tmp_file: str = './tmp/tmp_file'
+        self.media_type: str = ''
+        self.output: str = './output/output'
 
         self.header: int = 8
         self.buffer: int = 1460
@@ -50,7 +54,8 @@ class TcpServer:
         self.json_obj = json.load(conn.recv(json_size).decode('utf-8'))
 
         # 一時保存ファイル名を作成
-        self.tmp_file += conn.recv(media_type_size).decode('utf-8')
+        self.media_type: str = conn.recv(media_type_size).decode('utf-8')
+        self.tmp_file += self.media_type
 
         # ビデオファイル受信
         with open(self.tmp_file, 'wb') as f:
@@ -78,8 +83,10 @@ class ErrorHandle:
 
 
 class VideoProcessor:
-    def __init__(self, tmp_file: str, json_obj: dict):
+    def __init__(self, tmp_file: str, output: str, media_type: str, json_obj: dict):
         self.tmp_file: str = tmp_file
+        self.output: str = output
+        self.media_type: str = media_type
         self.json_obj: dict = json_obj
         self.functions: dict[str, function] = {
             '1': self.compress,
@@ -89,24 +96,27 @@ class VideoProcessor:
             '5': self.create_gif_webm
         }   
 
-    
 
     # 動画圧縮
     def compress(self):
-        
-
+        self.output = self.output + self.media_type
+        ffmpeg -i self.tmp_file -crf 28 self.output
 
     # 解像度の変更
-    def chenge_resolution(self):
-        pass
+    def chenge_resolution(self, width: int, height: int):
+        self.output = self.output + self.media_type
+        ffmpeg -i self.tmp_file -vf scale={width}:{height} self.output
+        
 
     # アスペクト比の変更
-    def change_aspect_ratio(self):
-        pass
+    def change_aspect_ratio(self, width: int, height: int):
+        self.output = self.output + self.media_type
+        ffmpeg -i self.tmp_file -aspect {width}:{height} self.output
 
     # 音声へ変換
     def convert_to_audio(self):
-        pass
+        self.output = self.output + '.aac'
+        ffmpeg -i self.tmp_file -vn -c:a aac self.output
 
     # GIF、WEBMを作成
     def create_gif_webm(self):
