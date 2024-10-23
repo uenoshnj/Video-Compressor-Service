@@ -10,6 +10,7 @@ class TcpServer:
         self.sock: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_host: str = ''
         self.server_port: int = 9001
+        self.conn: socket.socket = None
         
         self.json_obj: dict = {}
         self.tmp_file: str = './tmp/tmp_file'
@@ -34,11 +35,11 @@ class TcpServer:
     # データ受信
     def recv(self):
         self._bind()
-        conn, addr = self.sock.accept()
+        self.conn, addr = self.sock.accept()
         print(f'Connected from {addr}')
         
         # ヘッダー受信
-        header: bytes = conn.recv(self.header)
+        header: bytes = self.conn.recv(self.header)
         file_size: int = mmp.get_payload_size(header)
         json_size: int = mmp.get_json_size(header)
         media_type_size: int = mmp.get_mediatype_size(header)
@@ -46,29 +47,29 @@ class TcpServer:
         # ファイルバイト数が4TBを超えている場合
         if file_size > self.MAX_FILE_SIZE:
             error_obj = ErrorHandle(self.RECEIVE_FILE_SIZE_EXCEED, 'File size exceeds 4TB', 'Reduce file size')
-            conn.sendall(mmp.create_packet(error_obj, '', b''))
-            conn.close()
-            return 1
+            self.conn.sendall(mmp.create_packet(error_obj, '', b''))
+            self.conn.close()
         
         # jsonの受信
-        self.json_obj = json.load(conn.recv(json_size).decode('utf-8'))
+        self.json_obj = json.load(self.conn.recv(json_size).decode('utf-8'))
 
         # 一時保存ファイル名を作成
-        self.media_type: str = conn.recv(media_type_size).decode('utf-8')
+        self.media_type: str = self.conn.recv(media_type_size).decode('utf-8')
         self.tmp_file += self.media_type
 
         # ビデオファイル受信
         with open(self.tmp_file, 'wb') as f:
             while file_size > 0:
-                data: bytes = conn.recv(self.buffer)
+                data: bytes = self.conn.recv(self.buffer)
                 file_size -= self.buffer
                 f.write(data)
+    
+    # データ送信
+    def send(self, output):
+        with open(output, 'rb') as f:
+            payload: bytes = f.read()
+            self.conn.sendall(mmp.create_packet(self.json_obj, self.media_type, payload))
 
-    # 通信
-    def communication(self):
-        
-        # レスポンスの送信
-        conn.sendall('Video file uploaded'.encode())
 
 
 class ErrorHandle:
@@ -119,19 +120,23 @@ class VideoProcessor:
         ffmpeg -i self.tmp_file -vn -c:a aac self.output
 
     # GIF、WEBMを作成
-    def create_gif_webm(self):
-        pass
+    def create_gif_webm(self, startpoint: int, endpoint: int):
+        self.output = self.output + '.gif'
+        ffmpeg -i self.tmp_file -ss startpoint -t endpoint -r 10 self.output
     
     # 処理判断
     def process_Handle(self):
-        self.json_obj
+        if self.json_obj['arg'] == None:
+            self.functions[self.json_obj['process']]()
+        else:
+            self.functions[self.json_obj['process']](self.json_obj['arg'])
         
 
 
 
 def main():
     server: TcpServer = TcpServer()
-    server.communication()
+    server.recv()
     server.sock.close()
 
 main()
