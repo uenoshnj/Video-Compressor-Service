@@ -79,8 +79,6 @@ class ErrorHandle:
             'message' : message,
             'solusion': solusion
         }
-    
-    
 
 
 class VideoProcessor:
@@ -101,7 +99,8 @@ class VideoProcessor:
     # 動画圧縮
     def compress(self):
         self.output = self.output + self.media_type
-        ffmpeg -i self.tmp_file -crf 28 self.output
+        ffmpeg.input(self.tmp_file).output(self.output, crf=28).run()
+        # ffmpeg -i self.tmp_file -crf 28 self.output
 
     # 解像度の変更
     def chenge_resolution(self, width: int, height: int):
@@ -116,8 +115,14 @@ class VideoProcessor:
 
     # 音声へ変換
     def convert_to_audio(self):
-        self.output = self.output + '.aac'
-        ffmpeg -i self.tmp_file -vn -c:a aac self.output
+        # 動画内の音声情報の取得
+        video_info = ffmpeg.probe(self.tmp_file, select_streams='a')
+        # アウトプットファイルに拡張子を設定
+        self.output = self.output + video_info["streams"][0]["codec_name"]
+
+        # 音声ファイルの抽出
+        stream: ffmpeg = ffmpeg.input(self.tmp_file)
+        stream: tuple = ffmpeg.output(stream, self.output, acodec='copy').run()
 
     # GIF、WEBMを作成
     def create_gif_webm(self, startpoint: int, endpoint: int):
