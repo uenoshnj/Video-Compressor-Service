@@ -4,6 +4,7 @@ import socket
 import ffmpeg
 
 import mmp
+import sys
 
 class TcpServer:
     def __init__(self):
@@ -39,7 +40,13 @@ class TcpServer:
         print(f'Connected from {addr}')
         
         # ヘッダー受信
-        header: bytes = self.conn.recv(self.header)
+        try:
+            header: bytes = self.conn.recv(self.header)
+        
+        except ConnectionError as e:
+            print(e)
+            self.conn.close()
+            
         file_size: int = mmp.get_payload_size(header)
         json_size: int = mmp.get_json_size(header)
         media_type_size: int = mmp.get_mediatype_size(header)
@@ -79,6 +86,7 @@ class ErrorHandle:
             'message' : message,
             'solusion': solusion
         }
+    
 
 
 class VideoProcessor:
@@ -93,25 +101,28 @@ class VideoProcessor:
             '3': self.change_aspect_ratio,
             '4': self.convert_to_audio,
             '5': self.create_gif_webm
-        }   
+        }
+
+        self.process_Handle()
 
 
     # 動画圧縮
     def compress(self):
         self.output = self.output + self.media_type
         ffmpeg.input(self.tmp_file).output(self.output, crf=28).run()
-        # ffmpeg -i self.tmp_file -crf 28 self.output
+
 
     # 解像度の変更
     def chenge_resolution(self, width: int, height: int):
         self.output = self.output + self.media_type
-        ffmpeg -i self.tmp_file -vf scale={width}:{height} self.output
-        
+        ffmpeg.input(self.tmp_file).output(self.output, vf=f'scale={width}:{height}').run()
+
 
     # アスペクト比の変更
     def change_aspect_ratio(self, width: int, height: int):
         self.output = self.output + self.media_type
-        ffmpeg -i self.tmp_file -aspect {width}:{height} self.output
+        ffmpeg.input(self.tmp_file).output(self.output, aspect=f'{width}:{height}').run()
+
 
     # 音声へ変換
     def convert_to_audio(self):
@@ -127,21 +138,22 @@ class VideoProcessor:
     # GIF、WEBMを作成
     def create_gif_webm(self, startpoint: int, endpoint: int):
         self.output = self.output + '.gif'
-        ffmpeg -i self.tmp_file -ss startpoint -t endpoint -r 10 self.output
-    
+        ffmpeg.input(self.tmp_file).output(self.output, ss=startpoint, t=endpoint, r=10).run()
+
+
     # 処理判断
     def process_Handle(self):
         if self.json_obj['arg'] == None:
             self.functions[self.json_obj['process']]()
         else:
             self.functions[self.json_obj['process']](self.json_obj['arg'])
-        
-
 
 
 def main():
     server: TcpServer = TcpServer()
     server.recv()
+    video_process: VideoProcessor = VideoProcessor(server.tmp_file, server.output, server.media_type, server.json_obj)
+    server.send(video_process.output)
     server.sock.close()
 
 main()
